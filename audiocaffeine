@@ -1,0 +1,125 @@
+#!/bin/sh
+# Inhibit auto-suspend if audio is playing.
+# Uses sox(1) to detect if there are any running audio sources.
+#
+# Based on https://forums.linuxmint.com/viewtopic.php?t=274877
+# With modification from https://forums.linuxmint.com/viewtopic.php?t=401003
+
+set -e
+
+# Audiocaffeine - ALSA
+
+# Works in Linux Mint 19 - Cinnamon, Linux Mint 19 - Mate, Ubuntu 18.04 - Gnome
+
+# Script to temporarily set suspend timout for AC and battery to "Never"
+# while audio is playing.  It then reverts the settings when audio is no longer detected.
+
+# Determine if a valid desktop environment is running and exit if it doesn't.
+    echo "Reported desktop environment: ""$XDG_CURRENT_DESKTOP"
+if [ "$XDG_CURRENT_DESKTOP" = "X-Cinnamon" ]; then
+    actimeoutid="org.cinnamon.settings-daemon.plugins.power sleep-inactive-ac-timeout"
+    batttimeoutid="org.cinnamon.settings-daemon.plugins.power sleep-inactive-battery-timeout"
+    disablevalue=0
+elif [ "$XDG_CURRENT_DESKTOP" = "MATE" ]; then
+    actimeoutid="org.mate.power-manager sleep-computer-ac"
+    batttimeoutid="org.mate.power-manager sleep-computer-battery"
+    disablevalue=0
+elif [ "$XDG_CURRENT_DESKTOP" = "ubuntu:GNOME" ]; then
+    actimeoutid="org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type"
+    batttimeoutid="org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type"
+    disablevalue="nothing"
+else
+    echo "No valid desktop environment is running"
+    exit 1
+fi
+
+# Create .config directory to store settings if it doesn't exist.
+if [ ! -d ~/.config ]; then
+    echo ".config directory not found!"
+    echo "Creating ~/.config"
+    mkdir ~/.config
+fi
+
+# Create audiocaffeine directory to store settings if it doesn't exist.
+if [ ! -d ~/.config/audiocaffeine ]; then
+    echo "Configuration directory not found!"
+    echo "Creating ~/.config/audiocaffeine"
+    mkdir ~/.config/audiocaffeine
+fi
+
+# Restore previous value for AC suspend timeout if script
+# was interrupted.
+if [ -f ~/.config/audiocaffeine/acsuspend ]; then
+    echo "Restoring previous AC suspend timeout."
+    read acsuspendtime < ~/.config/audiocaffeine/acsuspend
+    gsettings set $actimeoutid $acsuspendtime
+    echo "Removing temporary file ~/.config/audiocaffeine/acsuspend"
+    rm ~/.config/audiocaffeine/acsuspend
+fi
+
+# Restore previous value for battery suspend timeout if script
+# was interrupted.
+if [ -f ~/.config/audiocaffeine/battsuspend ]; then
+    echo "Restoring previous battery suspend timeout."
+    read battsuspendtime < ~/.config/audiocaffeine/battsuspend
+    gsettings set $batttimeoutid $battsuspendtime
+    echo "Removing temporary file ~/.config/audiocaffeine/battsuspend"
+    rm ~/.config/audiocaffeine/battsuspend
+fi
+
+# Start main loop to check if audio is playing
+
+#https://stackoverflow.com/questions/21294283/when-did-hup-stop-getting-sent-and-what-can-i-do-about-it
+opp=$(ps -o ppid= $$)
+while [ $opp = $(ps -o ppid= $$) ]; do
+
+    if ! sox -q -t alsa -d -n stats trim 0 2 2>&1 | grep -q "Max level *0.000000"; then
+
+        echo "Audio detected."
+
+        # If AC timeout was not previously saved, then save it.
+        if [ ! -f ~/.config/audiocaffeine/acsuspend ]; then
+            echo "Saving current AC suspend timeout."
+            gsettings get $actimeoutid > ~/.config/audiocaffeine/acsuspend
+        fi
+
+        # If battery timeout was not previously saved, then save it.
+        if [ ! -f ~/.config/audiocaffeine/battsuspend ]; then
+            echo "Saving current battery suspend timeout."
+            gsettings get $batttimeoutid > ~/.config/audiocaffeine/battsuspend
+        fi
+
+        # Set the suspend timouts to Never using gsettings.
+        echo "Changing suspend timeouts."
+        gsettings set $actimeoutid $disablevalue
+        gsettings set $batttimeoutid $disablevalue
+
+    else
+        echo "No audio detected."
+
+        # Restore previous value for AC suspend timeout and delete the
+        # temporary file storing it.
+        if [ -f ~/.config/audiocaffeine/acsuspend ]; then
+            echo "Restoring previous AC suspend timeout."
+            read acsuspendtime < ~/.config/audiocaffeine/acsuspend
+            gsettings set $actimeoutid $acsuspendtime
+            echo "Removing temporary file ~/.config/audiocaffeine/acsuspend"
+            rm ~/.config/audiocaffeine/acsuspend
+        fi
+
+        # Restore previous value for battery suspend timeout and delete the
+        # temporary file storing it.
+        if [ -f ~/.config/audiocaffeine/battsuspend ]; then
+            echo "Restoring previous battery suspend timeout."
+            read battsuspendtime < ~/.config/audiocaffeine/battsuspend
+            gsettings set $batttimeoutid $battsuspendtime
+            echo "Removing temporary file ~/.config/audiocaffeine/battsuspend"
+            rm ~/.config/audiocaffeine/battsuspend
+        fi
+
+    fi
+
+    # Pause the script for 60 seconds before doing the loop again.
+    sleep ${1:-28s}
+
+done

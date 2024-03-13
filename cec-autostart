@@ -1,0 +1,52 @@
+#!/bin/sh
+# Switch your TV on whenever your computer wakes up.
+#
+# Note: this doesn't work out-of-the-box on most hardware. You probably need
+# a specially constructed DisplayPort-HDMI adapter, e.g. P/N 2JA63AA from HP.
+# Connect the DP end to the DP port on your GPU, then use a normal HDMI cable
+# to connect the HDMI end to your TV. Don't use the HDMI port on your GPU.
+#
+# See https://wiki.archlinux.org/title/HDMI-CEC#Hardware_setup
+# and https://docs.kernel.org/admin-guide/media/cec.html#displayport-to-hdmi-adapters-with-working-cec
+# for details.
+#
+# Tested by author with P/N 2JA63AA, Radeon RX 7800 XT GPU, and HiSense TV.
+
+dev="${1:-0}"
+cec_ctl() {
+  cec-ctl -d"$dev" "$@"
+}
+
+my_edid() {
+  wc -c /sys/class/drm/*/edid   | grep -v ^0 | grep -v 'total$' | head -n1 | cut '-d ' -f2
+}
+
+my_addr() {
+  cec_ctl | sed -ne 's/^\s*Physical Address\s*:\s*//igp'
+}
+
+extract_types() {
+  sed -ne 's/^\s*Primary Device Type\s*:\s*//igp'
+}
+
+# configure cec on this computer and detect TV
+# we do this at the same time, because if the TV is not detected then to fix it
+# we have to retry configuration, not simply wait and retry detection
+while ! cec_ctl -s --playback --osd-name="$(hostname)" --phys-addr-from-edid "$(my_edid)" -S | extract_types | grep -iq "tv"; do
+  sleep 0.5
+done
+echo >&2 "CEC configured and TV detected"
+
+# switch the TV on
+cec_ctl -s -t0 --image-view-on
+echo >&2 "TV switching on..."
+
+# wait for the TV to be on
+while ! cec_ctl -s -t0 --give-device-power-status | grep -i 'pwr-state: *on'; do
+  sleep 0.5
+done
+echo >&2 "TV should be switched on by now"
+
+# switch the TV screen to this computer, as opposed to some other device
+cec_ctl -s -t0 --active-source phys-addr="$(my_addr)"
+# last step so don't bother with detection of success

@@ -1,0 +1,1 @@
+SUBSYSTEM=="cec" KERNEL=="cec0" ACTION=="add" TAG+="systemd" ENV{SYSTEMD_WANTS}="cec0-configure.service"

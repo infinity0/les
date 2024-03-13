@@ -1,0 +1,11 @@
+[Unit]
+Description=Configure CEC adapter cec0
+BindsTo=dev-cec0.device
+After=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
+
+[Service]  
+Type=oneshot
+ExecStart=/usr/local/bin/cec-autostart
+
+[Install]
+WantedBy=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
