@@ -32,8 +32,21 @@ extract_types() {
 # configure cec on this computer and detect TV
 # we do this at the same time, because if the TV is not detected then to fix it
 # we have to retry configuration, not simply wait and retry detection
+i=0
 while ! cec_ctl -s --playback --osd-name="$(hostname)" --phys-addr-from-edid "$(my_edid)" -S | extract_types | grep -iq "tv"; do
   sleep 0.5
+  i=$((i + 1))
+  if [ "$i" -gt 20 ]; then
+    cat >&2 <<-EOF
+Failed to detect a TV after 10 seconds. If everything was working before, for
+example immediately after putting the TV on standby, it's possible that now
+your TV is in a hard power-off state where even HDMI-CEC is off. In this case,
+it's impossible for anything to control the TV - you'll have to switch it on
+manually the normal way. You can also try reporting this to the manufacturer,
+and ask them to keep HDMI-CEC on even in the hard power-off state.
+EOF
+    exit 1
+  fi
 done
 echo >&2 "CEC configured and TV detected"
 
