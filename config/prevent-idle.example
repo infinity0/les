@@ -29,4 +29,5 @@ my_remote=???
 # This assumes you never use the TV in TV mode, where channelup does something.
 do_nothing=key_channelup
 
+set -e
 irsend send_once "${my_remote}" "${do_nothing}"

@@ -26,5 +26,11 @@
 # 3. Fill in my_remote below, and copy this file without the .example suffix.
 
 my_remote=???
+# Rough overestimate of how long it takes for the TV to switch on from being
+# hard-off. If this is set too low then cec-autostart may switch the TV on,
+# off, on before HDMI-CEC comes online and it can confirm the TV is really on.
+sleep_time=8
 
+set -e
 irsend send_once "${my_remote}" key_power
+sleep "${sleep_time}"
