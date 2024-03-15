@@ -11,6 +11,7 @@
 # for details.
 #
 # Tested by author with P/N 2JA63AA, Radeon RX 7800 XT GPU, and HiSense TV.
+set -e
 
 dev="${1:-0}"
 cec_ctl() {
@@ -32,21 +33,43 @@ extract_types() {
 # configure cec on this computer and detect TV
 # we do this at the same time, because if the TV is not detected then to fix it
 # we have to retry configuration, not simply wait and retry detection
-i=0
-while ! cec_ctl -s --playback --osd-name="$(hostname)" --phys-addr-from-edid "$(my_edid)" -S | extract_types | grep -iq "tv"; do
-  sleep 0.5
-  i=$((i + 1))
-  if [ "$i" -gt 20 ]; then
-    cat >&2 <<-EOF
+for act in a a a a b b b b b b b b x; do
+  if cec_ctl -s --playback --osd-name="$(hostname)" --phys-addr-from-edid "$(my_edid)" -S | extract_types | grep -iq "tv"; then
+    break;
+  fi
+  case "$act" in
+  a)
+    sleep 0.5
+    ;;
+  b)
+    if [ -x /etc/les/hard-on ]; then
+      echo >&2 "TV not on HDMI-CEC; it might be hard off. Executing hard-on script."
+      /etc/les/hard-on || true
+      sleep 5
+    else
+      sleep 0.5
+    fi
+    ;;
+  x)
+    if [ -x /etc/les/hard-on ]; then
+      echo >&2 "TV hard-on script still failing after several retries. Aborting. Sorry."
+    else
+      cat >&2 <<-EOF
 Failed to detect a TV after 10 seconds. If everything was working before, for
 example immediately after putting the TV on standby, it's possible that now
 your TV is in a hard power-off state where even HDMI-CEC is off. In this case,
 it's impossible for anything to control the TV - you'll have to switch it on
 manually the normal way. You can also try reporting this to the manufacturer,
 and ask them to keep HDMI-CEC on even in the hard power-off state.
+
+You can also try adding a hard-on script to ~/.config/cec-autostart/hard-on
+for example, that switches your TV on using an IR transmitter attached to your
+computer, via "irsend" from the "lirc" package.
 EOF
+    fi
     exit 1
-  fi
+    ;;
+  esac
 done
 echo >&2 "CEC configured and TV detected"
 

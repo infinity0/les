@@ -94,6 +94,10 @@ while [ $opp = $(ps -o ppid= $$) ]; do
         gsettings set $actimeoutid $disablevalue
         gsettings set $batttimeoutid $disablevalue
 
+        if [ -x /etc/les/prevent-idle ]; then
+            /etc/les/prevent-idle
+        fi
+
     else
         echo "No audio detected."
 

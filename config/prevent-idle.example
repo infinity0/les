@@ -1,0 +1,32 @@
+#!/bin/sh
+# Prevent your TV from idle-auto-off via IR remote control.
+#
+# To make this script work, you need to:
+#
+# 1. Get a IR transmitter for your computer. If you can't find one that connects
+#    directly to your computer, you can make one for yourself using a cheap IR
+#    transmitter module and a USB-to-GPIO breakout board e.g. Adafruit MCP2221A.
+#
+#    Note: plain IR LEDs need resistors to work properly and should not be
+#    connected directly to GPIO. You can find mini IR modules online that have
+#    this all included, that can be connected directly to GPIO.
+#
+# 2. Install and configure LIRC to correctly talk to your IR transmitter, as well
+#    as having knowledge of the codes for your IR remote control.
+#
+#    a. You can possibly get the codes online on LIRC's website, or if not then:
+#    b. You'll have to detect them yourself. This is not that hard:
+#
+#       1. Get a IR receiver for your computer similar to step (1).
+#       2. Configure LIRC to correctly talk to your IR receiver.
+#       3. Use `irrecord` and follow its instructions to generate a config for
+#          your remote. You don't need to configure all the keys but for our
+#          scripts here you need at least the power key and a do-nothing key.
+#
+# 3. Fill in my_remote below, and copy this file without the .example suffix.
+
+my_remote=???
+# This assumes you never use the TV in TV mode, where channelup does something.
+do_nothing=key_channelup
+
+irsend send_once "${my_remote}" "${do_nothing}"
