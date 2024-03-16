@@ -30,6 +30,12 @@ extract_types() {
   sed -ne 's/^\s*Primary Device Type\s*:\s*//igp'
 }
 
+listmonitors() {
+  # often we can detect the monitor through xrandr before CEC comes online
+  XAUTHORITY=/root/.Xauthority xauth -i merge /home/*/.Xauthority
+  XAUTHORITY=/root/.Xauthority DISPLAY=:0.0 xrandr --listmonitors | sed -nre 's/^Monitors: *//ipg'
+}
+
 # configure cec on this computer and detect TV
 # we do this at the same time, because if the TV is not detected then to fix it
 # we have to retry configuration, not simply wait and retry detection
@@ -42,14 +48,14 @@ for act in a a a a b b b b b b b b x; do
     sleep 0.5
     ;;
   b)
-    if [ -x /etc/les/hard-on ]; then
-      echo >&2 "TV not on HDMI-CEC; it might be hard off. Executing hard-on script."
+    if [ -x /etc/les/hard-on -a "$(listmonitors)" = 0 ]; then
+      echo >&2 "TV not on HDMI-CEC and no monitors detected. Executing hard-on script."
       /etc/les/hard-on || true
     fi
     sleep 0.5
     ;;
   x)
-    if [ -x /etc/les/hard-on ]; then
+    if [ -x /etc/les/hard-on -a "$(listmonitors)" = 0 ]; then
       echo >&2 "TV hard-on script still failing after several retries. Aborting. Sorry."
     else
       cat >&2 <<-EOF

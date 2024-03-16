@@ -1,7 +1,7 @@
 .PHONY: install
 
 build-dep:
-	aptitude install lirc sox v4l-utils xprintidle
+	aptitude install lirc sox v4l-utils xorg xprintidle
 
 install:
 	mkdir -p "$(DESTDIR)/"
