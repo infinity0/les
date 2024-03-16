@@ -1,6 +1,6 @@
-.PHONY: install
+.PHONY: dep install postinst
 
-build-dep:
+dep:
 	aptitude install lirc sox v4l-utils xorg xprintidle
 
 install:

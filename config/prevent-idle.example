@@ -11,6 +11,9 @@
 #    connected directly to GPIO. You can find mini IR modules online that have
 #    this all included, that can be connected directly to GPIO.
 #
+#    (Other options are possible e.g. Arduino, RPi, but the breakout board as we
+#    suggest is the least complex, runs the fastest, and uses the fewest wires.)
+#
 # 2. Install and configure LIRC to correctly talk to your IR transmitter, as well
 #    as having knowledge of the codes for your IR remote control.
 #
