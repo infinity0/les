@@ -1,7 +1,7 @@
 .PHONY: dep install postinst
 
 dep:
-	aptitude install lirc sox v4l-utils xdotool xorg xprintidle
+	aptitude install lirc sox v4l-utils xdotool xprintidle
 
 install:
 	mkdir -p "$(DESTDIR)/"

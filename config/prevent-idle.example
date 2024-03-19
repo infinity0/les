@@ -28,6 +28,7 @@
 #
 # 3. Fill in my_remote below, and copy this file without the .example suffix.
 
+# Your remote control name, as configured in LIRC.
 my_remote=???
 # This assumes you never use the TV in TV mode, where channelup does something.
 do_nothing=key_channelup

@@ -28,12 +28,18 @@
 #
 # 3. Fill in my_remote below, and copy this file without the .example suffix.
 
+# Your remote control name, as configured in LIRC.
 my_remote=???
+# Ideally, this would only switch the TV on and not e.g. toggle the power off
+# if it is already on. Sometimes TV remotes have other buttons (e.g. OK) that
+# "secretly" do this, in which case you should use that rather than the power
+# toggle button. The behaviour varies wildly, you should test it.
+power_on=key_power
 # Rough overestimate of how long it takes for the TV to switch on from being
 # hard-off. If this is set too low then cec-autostart may switch the TV on,
 # off, on before HDMI-CEC comes online and it can confirm the TV is really on.
 sleep_time=8
 
 set -e
-irsend send_once "${my_remote}" key_power
+irsend send_once "${my_remote}" "${power_on}"
 sleep "${sleep_time}"
