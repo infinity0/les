@@ -1,0 +1,77 @@
+# Your TV's mac address. This MUST be set.
+tv_macaddr=
+
+# Rough overestimate of how long it takes for the TV to switch on from being
+# hard-off. If this is set too low, then cec-autostart may give up too early.
+tv_ontime=8
+
+# Whether your TV supports Wake-on-LAN.
+#
+# If false, then we won't try this method. To make this work, enable Wake-on-LAN
+# in your TV settings.
+tv_wol=true
+
+# Your TV remote control name, as configured in LIRC.
+#
+# If empty, then we won't try this method. To make this work, you need to:
+#
+# 1. Get a IR transmitter for your computer. If you can't find one that connects
+#    directly to your computer, you can make one for yourself using a cheap IR
+#    transmitter module and a USB-to-GPIO breakout board that specifically has a
+#    bitbang mode e.g. Adafruit FT232H or another FTDI FT232-based board. Boards
+#    that don't have a bitbang mode won't work, e.g. Adafruit MCP2221A.
+#
+#    Note: plain IR LEDs need resistors to work properly and should not be
+#    connected directly to GPIO. You can find mini IR modules online that have
+#    this all included, that can be connected directly to GPIO.
+#
+#    (Other options are possible e.g. Arduino, RPi, but the breakout board as we
+#    suggest is the least complex, runs the fastest, and uses the fewest wires.)
+#
+# 2. Install and configure LIRC to correctly talk to your IR transmitter, as well
+#    as having knowledge of the codes for your IR remote control.
+#
+#    a. If using a FTDI FT232-based breakout board as suggested in (1), you need
+#       to configure LIRC to use its "ftdi" driver.
+#    b. You can possibly get the rc codes online on LIRC's website, or if not:
+#    c. You'll have to detect them yourself. This is not that hard:
+#
+#       1. Get a IR receiver for your computer similar to step (1).
+#       2. Configure LIRC to correctly talk to your IR receiver.
+#       3. Use `irrecord` and follow its instructions to generate a config for
+#          your remote. You don't need to configure all the keys but for our
+#          scripts here you need at least the power key and a do-nothing key.
+tv_rc=
+
+# TV remote control pre-command.
+# Set this to "ssh <host>" if you need to SSH in to another machine to run LIRC.
+# The command to run ("irsend <args>") is placed immediately after this.
+tv_rc_ssh=
+
+# Remote control "power on" key name, as configured in LIRC.
+#
+# key_power usually toggles the power, so that the TV switches off if it is
+# already on, which is not ideal here. Some TV remotes have other buttons (e.g.
+# OK) that "secretly" turn the TV on and only on, in which case you should use
+# that rather than key_power. This varies wildly across TVs; you should test
+# the behaviour of yours for best results. Keeping this as key_power may result
+# in cec-autostart turning your TV on,off, though we do our best to avoid this.
+# If you have confirmed that this is impossible for your chosen key, you can
+# also set tv_offtime=0 below to avoid some redundant waiting.
+tv_rc_on=key_power
+
+# Remote control "do nothing" key name, as configured in LIRC.
+#
+# key_channelup assumes you never use the TV in TV mode, where channelup does
+# something. If this is not the case, then you should find a better alternative
+# for this key - or else your TV will randomly change channels, as audiocaffeine
+# occasionally will trigger this key.
+tv_rc_nop=key_channelup
+
+# Rough overestimate of how long it takes for the TV to switch off. If this is
+# set too low, then we might accidentally think we've switched the TV on when
+# it's just leftover packets from before it actually switches off.
+tv_offtime=2
+
+# Network interface name for the TV.
+tv_iface="$(ip -br link show | grep -wv ^lo | head -n1 | cut '-d ' -f1)"

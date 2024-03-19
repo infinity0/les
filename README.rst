@@ -11,7 +11,7 @@ Details
 =======
 
 - Disable computer auto-suspend and TV auto-off, when audio (incl. video) is playing.
-- Switch on TV when computer wakes from suspend.
+- Switch on TV and make it source the computer, when the latter wakes from suspend.
 
 Install/build hardware
 ======================
@@ -24,14 +24,18 @@ the following:
   - Special DP-to-HDMI adapter, e.g. P/N 2JA63AA from HP.
   - See ``cec-autostart`` for details and alternatives.
 
-- To enable your computer to switch your TV on via IR, if its HDMI-CEC is off:
+- To enable your computer to switch your TV on via IR Remote Control, if/when
+  its HDMI-CEC and Wake-on-LAN are both off:
 
-  - USB-to-GPIO breakout board, e.g. Adafruit MCP2221A.
+  - USB-to-GPIO breakout board with bitbang mode, e.g. Adafruit FT232H.
   - IR transmitter and receiver GPIO modules, commonly available.
   - DuPont/jump wires and a USB-C cable to hook these up to the computer.
-  - See ``config/hard-on.example`` for details and alternatives.
+  - See ``config/vars.example`` for details and alternatives.
 
-Also, make sure HDMI-CEC is enabled on your TV.
+Configure hardware
+==================
+
+Make sure both HDMI-CEC and Wake-on-LAN are enabled on your TV, if possible.
 
 Install dependencies
 ====================

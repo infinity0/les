@@ -1,5 +1,5 @@
 #!/bin/sh
-# Switch your TV on whenever your computer wakes up.
+# Switch your TV on and make it source the computer.
 #
 # Note: this doesn't work out-of-the-box on most hardware. You probably need
 # a specially constructed DisplayPort-HDMI adapter, e.g. P/N 2JA63AA from HP.
@@ -30,27 +30,40 @@ extract_types() {
   sed -ne 's/^\s*Primary Device Type\s*:\s*//igp'
 }
 
+# opportunistically run method 0 for speed
+if [ -x /etc/les/hard-on ]; then
+  /etc/les/hard-on 0 || true
+fi
+
 # configure cec on this computer and detect TV
 # we do this at the same time, because if the TV is not detected then to fix it
 # we have to retry configuration, not simply wait and retry detection
-for act in a a a a b b b b b b b b x; do
+ov=
+for act in a a a a b b b b c c c c x; do
   if cec_ctl -s --playback --osd-name="$(hostname)" --phys-addr-from-edid "$(my_edid)" -S | extract_types | grep -iq "tv"; then
     break;
   fi
-  case "$act" in
-  a)
+  case "${ov}${act}" in
+  a*)
     sleep 0.5
     ;;
-  b)
+  b*)
     if [ -x /etc/les/hard-on ]; then
-      echo >&2 "TV not on HDMI-CEC and no monitors detected. Executing hard-on script."
-      /etc/les/hard-on || true
+      echo >&2 "TV not on HDMI-CEC. Executing hard-on script (method 1)."
+      if /etc/les/hard-on 1; then ov=x; fi
     fi
     sleep 0.5
     ;;
-  x)
+  c*)
     if [ -x /etc/les/hard-on ]; then
-      echo >&2 "TV hard-on script still failing after several retries. Aborting. Sorry."
+      echo >&2 "TV not on HDMI-CEC. Executing hard-on script (method 2)."
+      if /etc/les/hard-on 2; then ov=x; fi
+    fi
+    sleep 0.5
+    ;;
+  x*)
+    if [ -x /etc/les/hard-on ]; then
+      echo >&2 "TV still not confirmed on after several retries. Aborting. Sorry."
     else
       cat >&2 <<-EOF
 Failed to detect a TV after 10 seconds. If everything was working before, for

@@ -1,45 +1,90 @@
-#!/bin/sh
-# Switch your TV on via IR remote control.
+#!/bin/bash
+# Switch your TV on via various methods.
+# You can customise this script, but make sure you keep the following contract:
 #
-# To make this script work, you need to:
+# BEGINNING OF CONTRACT
 #
-# 1. Get a IR transmitter for your computer. If you can't find one that connects
-#    directly to your computer, you can make one for yourself using a cheap IR
-#    transmitter module and a USB-to-GPIO breakout board e.g. Adafruit MCP2221A.
+# Arg 1: which method to try first, one of {0, 1, 2}.
+# - Method 0 must not accidentally switch the TV off. It should be quick.
+#   If it is not configured, do nothing.
+# - Methods 1, 2, etc, may accidentally switch the TV off during corner cases.
+#   If it is not configured, try an arbitrary other method that is.
 #
-#    Note: plain IR LEDs need resistors to work properly and should not be
-#    connected directly to GPIO. You can find mini IR modules online that have
-#    this all included, that can be connected directly to GPIO.
+# Exits 0 if the TV was detected to be very very probably on.
+# Exits non-0 if its status could not be reliably determined, including if
+# there was a problem with configuration or executing the switch-on method.
 #
-#    (Other options are possible e.g. Arduino, RPi, but the breakout board as we
-#    suggest is the least complex, runs the fastest, and uses the fewest wires.)
+# END OF CONTRACT
 #
-# 2. Install and configure LIRC to correctly talk to your IR transmitter, as well
-#    as having knowledge of the codes for your IR remote control.
-#
-#    a. You can possibly get the codes online on LIRC's website, or if not then:
-#    b. You'll have to detect them yourself. This is not that hard:
-#
-#       1. Get a IR receiver for your computer similar to step (1).
-#       2. Configure LIRC to correctly talk to your IR receiver.
-#       3. Use `irrecord` and follow its instructions to generate a config for
-#          your remote. You don't need to configure all the keys but for our
-#          scripts here you need at least the power key and a do-nothing key.
-#
-# 3. Fill in my_remote below, and copy this file without the .example suffix.
-
-# Your remote control name, as configured in LIRC.
-my_remote=???
-# Ideally, this would only switch the TV on and not e.g. toggle the power off
-# if it is already on. Sometimes TV remotes have other buttons (e.g. OK) that
-# "secretly" do this, in which case you should use that rather than the power
-# toggle button. The behaviour varies wildly, you should test it.
-power_on=key_power
-# Rough overestimate of how long it takes for the TV to switch on from being
-# hard-off. If this is set too low then cec-autostart may switch the TV on,
-# off, on before HDMI-CEC comes online and it can confirm the TV is really on.
-sleep_time=8
+# Specifics of our example are as follows:
+# Methods:
+#   0: Wake-on-LAN
+#   1: Wake-on-LAN
+#   2: IR Remote Control
 
 set -e
-irsend send_once "${my_remote}" "${power_on}"
-sleep "${sleep_time}"
+
+vars="$(dirname "$0")"/vars
+
+if [ ! -f "$vars" ]; then
+	echo "Variables file not found! Try copying ${vars}.example to ${vars}"
+	exit 1
+fi
+
+. "$vars"
+
+test -n "$tv_macaddr"
+
+maybeoff=false
+lv1t() {
+	"$tv_wol"
+}
+lv1() {
+	etherwake -D -i "$tv_iface" -b "$tv_macaddr"
+}
+lv2t() {
+	test -n "$tv_rc"
+}
+lv2() {
+	$tv_rc_ssh irsend send_once "$tv_rc" "$tv_rc_on"
+	maybeoff=true
+}
+
+if ! lv1t && ! lv2t; then
+	echo "None of the methods for switching the TV on, are configured properly!"
+	exit 1
+fi
+
+level="${1:-1}"
+case "$level" in
+0)
+	if lv1t; then lv1; fi
+	;;
+1)
+	if lv1t; then lv1; else lv2; fi
+	;;
+*)
+	if lv2t; then lv2; else lv1; fi
+	;;
+esac
+
+# in case we just switched the TV off by mistake, wait a while for it to fully
+# switch off before attempting to detect TV packets
+if $maybeoff; then
+	sleep "${tv_offtime:-2}"
+fi
+
+tshark -i "$tv_iface" -a packets:1 ether src "$tv_macaddr" &
+cpid="$!"
+sleep "$tv_ontime" &
+spid="$!"
+
+wait -n "$cpid" "$spid" # only bash has -n
+if kill -0 "$cpid" 2>/dev/null; then
+	kill "$cpid"
+	echo "No TV packets detected!"
+	exit 1
+else
+	echo "TV packet detected!"
+	exit 0
+fi
