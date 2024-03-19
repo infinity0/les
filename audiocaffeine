@@ -1,16 +1,17 @@
 #!/bin/sh
-# Inhibit auto-suspend if audio is playing.
-# Uses sox(1) to detect if there are any running audio sources.
+# Inhibit auto-suspend if audio is playing, without resetting the idle
+# local status like `caffine` does, to allow the screensaver to run.
 #
-# If /etc/les/prevent-idle is executable, also execute this if audio is playing
-# **OR** if the user (keyboard, mouse) is not idle. This can be used to e.g.
-# prevent a TV screen from becoming idle, if it can't detect computer activity.
+# Additionally, if the local device is not idle or if audio is playing,
+# then run /etc/les/prevent-idle if it is executable. For example, to
+# inhibit auto-standby on a TV, if it can't detect computer activity.
 #
-# Based on https://forums.linuxmint.com/viewtopic.php?t=274877
-# With modification from https://forums.linuxmint.com/viewtopic.php?t=401003
+# Based on https://forums.linuxmint.com/viewtopic.php?t=274877 with
+# modification from https://forums.linuxmint.com/viewtopic.php?t=401003
+# which uses sox(1) to detect if there are any running audio sources.
 
 set -e
-checkinterval="${1:-28}"
+checkinterval="${1:-28}" # 28 seconds plus 2 seconds to record audio
 
 # Audiocaffeine - ALSA
 
@@ -72,14 +73,27 @@ if [ -f ~/.config/audiocaffeine/battsuspend ]; then
     rm ~/.config/audiocaffeine/battsuspend
 fi
 
+prevent_remote_idle() {
+    echo "Resetting remote idle status."
+    if [ -x /etc/les/prevent-idle ]; then
+        /etc/les/prevent-idle || true
+    fi
+}
+
+prevent_local_idle() {
+    echo "Resetting local idle status."
+    xdotool mousemove_relative --sync 1 1 && \
+    xdotool mousemove_relative -- -1 -1 || true
+}
+
 # Start main loop to check if audio is playing
 
+prevaudio=false
 #https://stackoverflow.com/questions/21294283/when-did-hup-stop-getting-sent-and-what-can-i-do-about-it
 opp=$(ps -o ppid= $$)
 while [ $opp = $(ps -o ppid= $$) ]; do
 
     if ! sox -q -t alsa -d -n stats trim 0 2 2>&1 | grep -q "Max level *0.000000"; then
-
         echo "Audio detected."
 
         # If AC timeout was not previously saved, then save it.
@@ -99,12 +113,28 @@ while [ $opp = $(ps -o ppid= $$) ]; do
         gsettings set $actimeoutid $disablevalue
         gsettings set $batttimeoutid $disablevalue
 
-        if [ -x /etc/les/prevent-idle ]; then
-            /etc/les/prevent-idle || true
-        fi
+        prevent_remote_idle
 
+        prevaudio=true
     else
         echo "No audio detected."
+
+        # If we just went silent, then reset the local idle timer so
+        # that we don't go into suspend immediately e.g. if we happened
+        # to have been idle for (acsuspend - 1 second).
+        #
+        # We don't prevent_local_idle all the time, so the screensaver
+        # can activate when we are playing audio.
+        #
+        # Doing prevent_local_idle here *does* delay the screensaver
+        # once, but only on these corner cases. The screensaver and
+        # the suspend function both use the same idle timer, so it's
+        # impossible for us to completely prevent the latter but allow
+        # the former in this script; this corner case imperfection is
+        # the best we can achieve.
+        if "$prevaudio"; then
+            prevent_local_idle
+        fi
 
         # Restore previous value for AC suspend timeout and delete the
         # temporary file storing it.
@@ -126,12 +156,14 @@ while [ $opp = $(ps -o ppid= $$) ]; do
             rm ~/.config/audiocaffeine/battsuspend
         fi
 
-        if [ -x /etc/les/prevent-idle ]; then
-            if [ $(xprintidle) -lt "$((checkinterval * 1000))" ]; then
-                /etc/les/prevent-idle || true
-            fi
+        # If the local device is not idle, then prevent remote devices
+        # from becoming idle. We *don't* prevent the local device from
+        # becoming idle if audio is not playing, for the screensaver.
+        if [ "$(xprintidle)" -lt "$((checkinterval * 1000))" ]; then
+            prevent_remote_idle
         fi
 
+        prevaudio=false
     fi
 
     # Pause the script for 60 seconds before doing the loop again.
