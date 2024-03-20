@@ -31,6 +31,7 @@ if [ ! -f "$vars" ]; then
 	exit 1
 fi
 
+. "${vars}.example"
 . "$vars"
 
 test -n "$tv_macaddr"

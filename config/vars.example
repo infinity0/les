@@ -1,15 +1,28 @@
+# To customise this file, copy it to ./vars, but don't delete this original.
+#
+# You MUST set tv_macaddr and AT LEAST ONE of {tv_wol, tv_rc}.
+
 # Your TV's mac address. This MUST be set.
 tv_macaddr=
+
+# Network interface name for the TV.
+# If you don't set this, we automatically use the first one available.
+tv_iface="$(ip -br link show | grep -wv ^lo | head -n1 | cut '-d ' -f1)"
 
 # Rough overestimate of how long it takes for the TV to switch on from being
 # hard-off. If this is set too low, then cec-autostart may give up too early.
 tv_ontime=8
 
+# Rough overestimate of how long it takes for the TV to switch off. If this is
+# set too low, then we might accidentally think we've switched the TV on when
+# it's just leftover packets from before it actually switches off.
+tv_offtime=2
+
 # Whether your TV supports Wake-on-LAN.
 #
 # If false, then we won't try this method. To make this work, enable Wake-on-LAN
 # in your TV settings.
-tv_wol=true
+tv_wol=false
 
 # Your TV remote control name, as configured in LIRC.
 #
@@ -67,11 +80,3 @@ tv_rc_on=key_power
 # for this key - or else your TV will randomly change channels, as audiocaffeine
 # occasionally will trigger this key.
 tv_rc_nop=key_channelup
-
-# Rough overestimate of how long it takes for the TV to switch off. If this is
-# set too low, then we might accidentally think we've switched the TV on when
-# it's just leftover packets from before it actually switches off.
-tv_offtime=2
-
-# Network interface name for the TV.
-tv_iface="$(ip -br link show | grep -wv ^lo | head -n1 | cut '-d ' -f1)"

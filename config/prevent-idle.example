@@ -14,6 +14,7 @@ if [ ! -f "$vars" ]; then
         echo "Variables file not found! Try copying ${vars}.example to ${vars}"
 fi
 
+. "${vars}.example"
 . "$vars"
 
 test -n "$tv_rc"
